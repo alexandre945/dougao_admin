@@ -1,0 +1,378 @@
+"use client";
+
+import { useEffect, useState } from "react";
+
+export default function HistoryPage() {
+  const [orders, setOrders] = useState<any[]>([]);
+  const sortedOrders = Array.isArray(orders)
+  ? [...orders].sort((a: any, b: any) => {
+      const aPrinted = a.printedAt ? 1 : 0;
+      const bPrinted = b.printedAt ? 1 : 0;
+      return aPrinted - bPrinted; // não impresso primeiro
+    })
+  : [];
+
+  // 🔹 Labels de tipo
+  const tipoLabel: Record<string, string> = {
+    RETIRADA: "Retirada",
+    BALCAO: "Balcão",
+    ENTREGA: "Entrega",
+  };
+  // helper (de preferência fora da função imprimir)
+async function markOrderAsPrintedSafe(orderId: number) {
+  try {
+    const res = await fetch(`/api/order-admin/${orderId}/printed`, {
+      method: "POST",
+      cache: "no-store",
+    });
+
+    const text = await res.text(); // <- pega a mensagem real
+
+    if (!res.ok) {
+      console.error("printed endpoint error:", res.status, text);
+      return null;
+    }
+
+    try {
+      return JSON.parse(text);
+    } catch {
+      return text;
+    }
+  } catch (e) {
+    console.error("fetch failed:", e);
+    return null;
+  }
+}
+
+
+
+   async function imprimirPedido(order: any) {
+    let conteudo = "";
+
+    const type = order?.customer?.type;
+    const origin = order?.origin;
+
+    const isBalcao = type === "BALCAO";
+    const isEntrega = type === "ENTREGA";
+    const isRetirada = type === "RETIRADA";
+
+    const nome = (order?.customer?.name ?? "").toString().trim();
+
+    conteudo += `PEDIDO #${order.id}\n`;
+    conteudo += `-----------------------------\n`;
+
+    // 🧾 ORIGEM (opcional mas útil)
+    if (origin === "CLIENT_WHATSAPP") conteudo += `Origem: WHATSAPP\n`;
+    if (origin === "PDV_ADMIN") conteudo += `Origem: PDV / ADMIN\n`;
+
+    // 🧾 TIPO DO PEDIDO
+    conteudo += `Tipo: ${tipoLabel[type] ?? "-"}\n\n`;
+
+    // 👤 IDENTIFICAÇÃO (CORRIGIDO)
+    // - BALCÃO: se não tiver nome, imprime BALCÃO
+    // - ENTREGA/RETIRADA: NUNCA imprime "BALCÃO" como nome
+    if (isBalcao) {
+      conteudo += `Cliente: ${nome || "BALCÃO"}\n`;
+    } else {
+      conteudo += `Cliente: ${nome || "Não informado"}\n`;
+    }
+
+    // 🪑 BALCÃO
+    if (isBalcao) {
+      conteudo += `Mesa: ${order.customer?.table || "-"}\n`;
+    }
+
+    // 📱 RETIRADA / ENTREGA
+    if (isRetirada || isEntrega) {
+      conteudo += `WhatsApp: ${order.customer?.phone || "-"}\n`;
+    }
+
+    // 🚚 ENTREGA
+    if (isEntrega) {
+      conteudo += `Endereço: ${order.customer?.address?.street ?? "-"}\n`;
+      conteudo += `Bairro: ${order.customer?.address?.bairro ?? "-"}\n`;
+
+      if (order.customer?.address?.reference) {
+        conteudo += `Ref.: ${order.customer.address.reference}\n`;
+      }
+    }
+
+    // 📝 OBSERVAÇÃO
+    if (order.customer?.note) {
+      conteudo += `\nOBS: ${order.customer.note}\n`;
+    }
+
+    // 🍔 ITENS
+    conteudo += `\nItens:\n`;
+
+    const items = Array.isArray(order?.items) ? order.items : [];
+    items.forEach((item: any) => {
+      conteudo += `- ${item.name} x${item.quantity}  R$ ${(
+        item.price * item.quantity
+      ).toFixed(2)}\n`;
+
+      item.additionals?.forEach((ad: any) => {
+        conteudo += `   + ${ad.name} (${ad.quantity}x)\n`;
+      });
+    });
+
+    // 💰 PAGAMENTO
+    conteudo += `\nPagamento:\n`;
+
+    if (order.payment?.forma === "dinheiro") {
+      conteudo += `- Dinheiro\n`;
+      if (order.payment?.trocoPara) {
+        conteudo += `  Troco para: R$ ${order.payment.trocoPara}\n`;
+      }
+    }
+
+    if (order.payment?.forma === "cartao") {
+      conteudo += `- Cartão (${order.payment.tipoCartao})\n`;
+      if (order.payment?.maquininha) {
+        conteudo += `  Máquina: ${order.payment.maquininha}\n`;
+      }
+    }
+
+    if (order.payment?.forma === "pix") {
+      conteudo += `- PIX\n`;
+      if (order.payment?.maquininha) {
+        conteudo += `  Máquina: ${order.payment.maquininha}\n`;
+      }
+    }
+
+    // 💵 TOTAL
+    conteudo += `\nTOTAL: R$ ${Number(order.total).toFixed(2)}\n`;
+    conteudo += `-----------------------------\n`;
+    conteudo += `Obrigado!\n`;
+
+    // 🖨️ PRINT
+    const win = window.open("", "", "width=300,height=600");
+    if (!win) return;
+
+    win.document.write(`
+  <pre style="
+    font-family: monospace;
+    font-size: 12px;
+    line-height: 1.2;
+    white-space: pre-wrap;
+    margin: 0;
+  ">${conteudo}</pre>
+`);
+
+
+    win.print();
+     await markOrderAsPrintedSafe(order.id);
+    win.document.close();
+   
+  }
+
+  // 🗑️ EXCLUIR PEDIDO (VERSÃO SEGURA)
+  async function excluirPedido(id: number) {
+    if (!confirm("Deseja excluir este pedido?")) return;
+
+    const res = await fetch(`/api/order-admin/${id}`, {
+      method: "DELETE",
+    });
+
+    if (!res.ok) {
+      alert("Erro ao excluir pedido. Tente novamente.");
+      return;
+    }
+
+    // remove da tela só se o backend confirmou
+    setOrders((prev) => prev.filter((o) => o.id !== id));
+  }
+
+  // 📥 BUSCAR PEDIDOS
+  useEffect(() => {
+    fetch("/api/order-admin")
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setOrders(data);
+        } else {
+          console.error("Resposta inesperada:", data);
+          setOrders([]);
+        }
+      })
+      .catch((err) => {
+        console.error("Erro ao carregar pedidos:", err);
+        setOrders([]);
+      });
+  }, []);
+
+  return (
+    <div className="min-h-screen bg-white text-black p-4">
+      <a
+        href="/admin"
+        className="inline-block mb-4 text-white bg-red-800 px-4 py-2 rounded-lg shadow hover:bg-red-900 transition"
+      >
+        ⬅ Voltar
+      </a>
+
+      <h1 className="text-2xl font-bold mb-4 text-center">
+        Histórico de Pedidos
+      </h1>
+       
+      <div className="space-y-4">
+        {sortedOrders.map((order: any) => {
+          const isPrinted = !!order.printedAt;
+
+                  return (
+                    <div
+                      key={order.id}
+                      className={[
+                        "border rounded p-4 space-y-2 transition",
+                        isPrinted ? "bg-gray-50 opacity-60 grayscale" : "bg-gray-50",
+                      ].join(" ")}
+                    >
+                      {/* CABEÇALHO */}
+                      <div className="flex justify-between text-sm text-gray-600">
+                        <div className="flex items-center gap-2">
+                          <strong>Pedido #{order.id}</strong>
+
+                          {isPrinted && (
+                            <span className="text-[11px] rounded-full bg-white px-2 py-0.5 border text-gray-700">
+                              🖨️ Impresso
+                            </span>
+                          )}
+                        </div>
+
+                        <span>{new Date(order.createdAt).toLocaleString()}</span>
+                      </div>
+
+                      <p className="text-xs italic text-gray-500">
+                        Origem:{" "}
+                        {order.origin === "CLIENT_WHATSAPP"
+                          ? "Cliente (WhatsApp)"
+                          : "PDV / Admin"}
+                      </p>
+
+                      <p>
+                        <strong>Tipo:</strong> {tipoLabel[order.customer?.type] ?? "—"}
+                      </p>
+
+                      <p>
+                        <strong>Cliente:</strong> {order.customer?.name ?? "—"}
+                      </p>
+
+                      {/* BALCÃO */}
+                      {order.customer?.type === "BALCAO" && (
+                        <p>
+                          <strong>Mesa:</strong> {order.customer?.table ?? "—"}
+                        </p>
+                      )}
+
+                      {/* RETIRADA / ENTREGA */}
+                      {order.customer?.type !== "BALCAO" && (
+                        <p>
+                          <strong>WhatsApp:</strong> {order.customer?.phone ?? "—"}
+                        </p>
+                      )}
+
+                      {/* ENTREGA */}
+                      {order.customer?.type === "ENTREGA" && (
+                        <>
+                          <p>
+                            <strong>Endereço:</strong>{" "}
+                            {order.customer?.address?.street ?? "—"}
+                          </p>
+                          <p>
+                            <strong>Bairro:</strong>{" "}
+                            {order.customer?.address?.bairro ?? "—"}
+                          </p>
+
+                          {order.customer?.address?.reference && (
+                            <p>
+                              <strong>Referência:</strong> {order.customer.address.reference}
+                            </p>
+                          )}
+                        </>
+                      )}
+
+                      {order.customer?.note && (
+                        <p className="italic text-sm bg-yellow-50 p-2 rounded">
+                          📝 {order.customer.note}
+                        </p>
+                      )}
+
+                      {order.payment && (
+                        <div className="mt-2 text-sm">
+                          <strong>Pagamento:</strong>{" "}
+                          {order.payment.forma === "dinheiro" && "Dinheiro"}
+                          {order.payment.forma === "cartao" &&
+                            `Cartão ${order.payment.tipoCartao}`}
+                          {order.payment.forma === "pix" && "Pix"}
+                          {order.payment.forma === "dinheiro" && order.payment.trocoPara && (
+                            <p>
+                              Troco para: R${" "}
+                              {Number(order.payment.trocoPara).toFixed(2)}
+                            </p>
+                          )}
+                          {(order.payment.forma === "cartao" || order.payment.forma === "pix") &&
+                            order.payment.maquininha && (
+                              <p>Maquininha: {order.payment.maquininha}</p>
+                            )}
+                        </div>
+                      )}
+
+                      <hr />
+
+                      {/* ITENS */}
+                      <div className="space-y-2 text-sm">
+                        <strong>Itens:</strong>
+
+                        {(Array.isArray(order.items) ? order.items : []).map(
+                          (item: any, idx: number) => (
+                            <div key={idx}>
+                              <p>
+                                {item.name} ({item.quantity})
+                              </p>
+
+                              <p>R$ {(item.price * item.quantity).toFixed(2)}</p>
+
+                              {item.additionals?.map((ad: any, i: number) => (
+                                <p key={i} className="ml-4 text-gray-600">
+                                  + {ad.name} ({ad.quantity}x)
+                                </p>
+                              ))}
+                            </div>
+                          )
+                        )}
+                      </div>
+
+                      <hr />
+
+                      <p className="font-bold text-right">
+                        Total: R$ {Number(order.total).toFixed(2)}
+                      </p>
+
+                      {/* AÇÕES */}
+                      <div className="flex gap-2 mt-2">
+                        <button
+                          onClick={() => imprimirPedido(order)}
+                          disabled={isPrinted} // opcional: trava reprint
+                          className={[
+                            "flex-1 text-white py-2 rounded font-bold transition",
+                            isPrinted ? "bg-green-600/60 cursor-not-allowed" : "bg-green-600",
+                          ].join(" ")}
+                        >
+                          🖨️ Imprimir
+                        </button>
+
+                        <button
+                          onClick={() => excluirPedido(order.id)}
+                          className="flex-1 bg-red-600 text-white py-2 rounded font-bold"
+                        >
+                          🗑️ Excluir
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+      </div>
+
+
+    </div>
+  );
+}

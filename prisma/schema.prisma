@@ -1,0 +1,78 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           Int      @id @default(autoincrement())
+  email        String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+}
+
+model Category {
+  id        Int       @id @default(autoincrement())
+  name      String
+  createdAt DateTime  @default(now())
+  products  Product[]
+}
+
+model Product {
+  id          Int      @id @default(autoincrement())
+  name        String
+  description String?
+  price       Decimal
+  active      Boolean  @default(true)
+  position    Int
+  categoryId  Int
+  createdAt   DateTime @default(now())
+  category    Category @relation(fields: [categoryId], references: [id])
+}
+
+model Order {
+  id              Int      @id @default(autoincrement())
+  cartJson        Json
+  whatsappMessage String
+  total           Decimal  @db.Decimal(10, 2)
+  printed         Boolean  @default(false)
+  createdAt       DateTime @default(now())
+}
+
+model Additional {
+  id        Int      @id @default(autoincrement())
+  name      String
+  price     Decimal  @db.Decimal(10, 2)
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+}
+
+model OrderAdmin {
+  id        Int      @id @default(autoincrement())
+  total     Decimal  @db.Decimal(10, 2)
+  status    String   @default("pending")
+  items     Json
+  createdAt DateTime @default(now())
+  customer  Json?
+  payment   Json
+  printedAt DateTime?
+  origin     String   @default("UNKNOWN") 
+  originHost String?                    
+}
+
+model StoreStatus {
+  id        Int             @id @default(1)
+  isOpen    Boolean         @default(false)
+  mode      StoreStatusMode @default(AUTO)
+  updatedAt DateTime        @updatedAt
+
+  @@map("store_status")
+}
+
+enum StoreStatusMode {
+  AUTO
+  MANUAL
+}
