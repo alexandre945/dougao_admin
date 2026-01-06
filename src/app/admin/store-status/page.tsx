@@ -36,6 +36,20 @@ export default function StoreStatusToggle() {
     loadStatus();
   }, []);
 
+  async function setAuto() {
+    setLoading(true);
+
+    await fetch("/api/store-status", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "auto" }),
+    });
+
+    await loadStatus();
+    setLoading(false);
+  }
+
+
   if (!data) return <p>Carregando status…</p>;
 
   return (
@@ -45,19 +59,34 @@ export default function StoreStatusToggle() {
           {data.isOpen ? "🟢 Aberta" : "🔴 Fechada"}
         </span>
 
-        <button
-          onClick={toggle}
-          disabled={loading}
-          className={`px-4 py-2 pt-4 mt-4 rounded-lg text-white font-medium ${
-            data.isOpen ? "bg-red-600" : "bg-green-600"
-          }`}
-        >
-          {loading
-            ? "Salvando…"
-            : data.isOpen
-            ? "Fechar agora"
-            : "Abrir agora"}
-        </button>
+         <div className="flex flex-col items-end p-2 space-y-2">
+          <button
+            onClick={toggle}
+            disabled={loading}
+            className={`px-4 py-2 pt-4 mt-4 rounded-lg text-white font-medium ${
+              data.isOpen ? "bg-red-600" : "bg-green-600"
+            }`}
+          >
+            {loading
+              ? "Salvando…"
+              : data.isOpen
+              ? "Fechar agora"
+              : "Abrir agora"}
+          </button>
+
+        {data.mode === "MANUAL" && (
+          <button
+              onClick={setAuto}
+              disabled={loading}
+              className="w-full px-4 py-2 rounded-lg border font-medium"
+            >
+              {loading ? "Salvando…" : "Voltar para automático"}
+          </button>
+        )}
+        <p className="text-xs text-gray-500">
+          Modo: <b>{data.mode}</b>
+        </p>
+         </div>
       </div>
 
       <p className="text-sm text-gray-600">{data.message}</p>
