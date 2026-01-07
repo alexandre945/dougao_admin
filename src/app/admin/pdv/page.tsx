@@ -688,54 +688,76 @@ function total() {
       </div>
 
     
+        {/* MODAL */}
+{isModalOpen && selectedProduct && (
+  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-3">
+    <div className="bg-white w-full max-w-md rounded-xl text-black max-h-[85vh] flex flex-col overflow-hidden">
+      
+      {/* HEADER (fixo) */}
+      <div className="p-4 border-b bg-white sticky top-0 z-10">
+        <div className="flex justify-between items-center">
+          <h2 className="font-bold">{selectedProduct.name}</h2>
+          <button onClick={() => setIsModalOpen(false)}>✕</button>
+        </div>
 
-      {/* MODAL */}
-      {isModalOpen && selectedProduct && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-white w-full max-w-md rounded-xl p-4 text-black">
-            <div className="flex justify-between mb-4">
-              <h2 className="font-bold">{selectedProduct.name}</h2>
-              <button onClick={() => setIsModalOpen(false)}>✕</button>
-            </div>
+        <p className="mt-2">
+          Preço base: R$ {Number(selectedProduct.price).toFixed(2)}
+        </p>
 
-            <p className="mb-3">
-              Preço base: R$ {Number(selectedProduct.price).toFixed(2)}
-            </p>
+        <h3 className="font-bold mt-3 text-center">Adicionais</h3>
+      </div>
 
-            <h3 className="font-bold mb-2 text-center">Adicionais</h3>
-
+      {/* LISTA (com SCROLL) */}
+        <div className="p-4 overflow-y-auto">
             {additionals.map((add) => {
               const selected = selectedAdditionals.find(
                 (a) => a.additionalId === add.id
               );
 
-              return (
-                <div
-                  key={add.id}
-                  className="flex justify-between items-center border p-2 mb-2 rounded"
-                >
-                  <div>
-                    <p className="font-medium">{add.name}</p>
-                    <p className="text-sm">R$ {Number(add.price).toFixed(2)}</p>
-                  </div>
+                return (
+                  <div
+                    key={add.id}
+                    className="flex justify-between items-center border p-2 mb-2 rounded"
+                  >
+                    <div>
+                      <p className="font-medium">{add.name}</p>
+                      <p className="text-sm">R$ {Number(add.price).toFixed(2)}</p>
+                    </div>
 
-                  {selected ? (
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() =>
-                          setSelectedAdditionals((prev) =>
-                            prev.map((a) =>
-                              a.additionalId === add.id
-                                ? { ...a, quantity: a.quantity + 1 }
-                                : a
+                    {selected ? (
+                      <div className="flex items-center gap-2">
+                        <button
+                          className="px-2 py-1 border rounded"
+                          onClick={() =>
+                            setSelectedAdditionals((prev) =>
+                              prev.map((a) =>
+                                a.additionalId === add.id
+                                  ? { ...a, quantity: a.quantity + 1 }
+                                  : a
+                              )
                             )
-                          )
-                        }
-                      >
-                        +
-                      </button>
-                      <span>{selected.quantity}</span>
+                          }
+                        >
+                          +
+                        </button>
+
+                        <span className="min-w-[20px] text-center">
+                          {selected.quantity}
+                        </span>
+
                       <button
+                        className="
+                          w-8 h-8
+                          flex items-center justify-center
+                          rounded-full
+                          border
+                          border-gray-300
+                          text-gray-700
+                          hover:bg-gray-100
+                          active:bg-gray-200
+                          active:scale-95
+                          transition
+                        "
                         onClick={() =>
                           setSelectedAdditionals((prev) =>
                             prev.filter((a) => a.additionalId !== add.id)
@@ -744,9 +766,23 @@ function total() {
                       >
                         −
                       </button>
-                    </div>
-                  ) : (
+
+                      </div>
+                    ) : (
                     <button
+                      className="
+                        px-3 py-1.5
+                        rounded-lg
+                        border
+                        border-green-600
+                        text-green-700
+                        font-semibold
+                        hover:bg-green-600
+                        hover:text-white
+                        active:bg-green-700
+                        active:scale-95
+                        transition
+                      "
                       onClick={() =>
                         setSelectedAdditionals((prev) => [
                           ...prev,
@@ -761,31 +797,49 @@ function total() {
                     >
                       Adicionar
                     </button>
-                  )}
-                  
-                </div>
-              );
-            })}
 
-            <button
-              className="mt-4 w-full bg-green-600 text-white py-2 rounded"
-              onClick={() => {
-                addToCart({
-                  ...selectedProduct,
-                  additionals: selectedAdditionals,
-                });
-                setIsModalOpen(false);
-              }}
-            >
-              Adicionar ao carrinho
-            </button>
+                    )}
+                  </div>
+                );
+              })}
+        </div>
 
-             
-
+          {/* FOOTER (fixo) */}
+          <div className="p-4 border-t bg-white sticky bottom-0">
+             <button
+                  className="
+                    w-full 
+                    bg-green-600 
+                    hover:bg-green-700 
+                    active:bg-green-800
+                    text-white 
+                    font-extrabold 
+                    py-3 
+                    rounded-xl 
+                    shadow-lg 
+                    transition 
+                    duration-150
+                    flex 
+                    items-center 
+                    justify-center 
+                    gap-2
+                  "
+                  onClick={() => {
+                    addToCart({
+                      ...selectedProduct,
+                      additionals: selectedAdditionals,
+                    });
+                    setIsModalOpen(false);
+                  }}
+                >
+                  🛒 Adicionar ao carrinho
+             </button>
 
           </div>
         </div>
-      )}
+      </div>
+    )}
+
 
       <div className="text-center mt-4">
         <a href="/admin" className="underline">
