@@ -2,11 +2,11 @@
   "crons": [
     {
       "path": "/api/cron?action=open&secret=meu_token_super_secreto_123",
-      "schedule": "0 22 * * 2-0"
+      "schedule": "0 22 * * 0,2,3,4,5,6"
     },
     {
       "path": "/api/cron?action=close&secret=meu_token_super_secreto_123",
-      "schedule": "0 3 * * 3-1"
+      "schedule": "0 3 * * 1,2,3"
     }
   ]
 }
