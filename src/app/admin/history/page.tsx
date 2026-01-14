@@ -216,7 +216,33 @@ async function markOrderAsPrintedSafe(orderId: number) {
        
       <div className="space-y-4">
         {sortedOrders.map((order: any) => {
+
+
           const isPrinted = !!order.printedAt;
+
+           const DELIVERY_FEE = 7;
+
+            const itemsTotal = (Array.isArray(order.items) ? order.items : []).reduce(
+              (sum: number, item: any) => {
+                const base = Number(item.price || 0) * Number(item.quantity || 0);
+
+                const adds = (Array.isArray(item.additionals) ? item.additionals : []).reduce(
+                  (s: number, ad: any) => s + Number(ad.price || 0) * Number(ad.quantity || 0),
+                  0
+                );
+
+                return sum + base + adds;
+              },
+              0
+            );
+
+            const customerType = String(order.customer?.type || "")
+              .trim()
+              .toUpperCase();
+
+            const fee = customerType === "ENTREGA" ? DELIVERY_FEE : 0;
+            const totalFinal = itemsTotal + fee;
+
 
                   return (
                     <div
@@ -230,6 +256,7 @@ async function markOrderAsPrintedSafe(orderId: number) {
                       <div className="flex justify-between text-sm text-gray-600">
                         <div className="flex items-center gap-2">
                           <strong>Pedido #{order.id}</strong>
+ 
 
                           {isPrinted && (
                             <span className="text-[11px] rounded-full bg-white px-2 py-0.5 border text-gray-700">
@@ -273,6 +300,7 @@ async function markOrderAsPrintedSafe(orderId: number) {
                       {/* ENTREGA */}
                       {order.customer?.type === "ENTREGA" && (
                         <>
+                        
                           <p>
                             <strong>Endereço:</strong>{" "}
                             {order.customer?.address?.street ?? "—"}
@@ -281,6 +309,7 @@ async function markOrderAsPrintedSafe(orderId: number) {
                             <strong>Bairro:</strong>{" "}
                             {order.customer?.address?.bairro ?? "—"}
                           </p>
+                      
 
                           {order.customer?.address?.reference && (
                             <p>
@@ -343,9 +372,26 @@ async function markOrderAsPrintedSafe(orderId: number) {
 
                       <hr />
 
-                      <p className="font-bold text-right">
-                        Total: R$ {Number(order.total).toFixed(2)}
-                      </p>
+                        <div className="mt-3 space-y-1 text-sm">
+                          <div className="flex justify-between">
+                            <span>Subtotal</span>
+                            <span>R$ {itemsTotal.toFixed(2)}</span>
+
+                          </div>
+
+                          {order.customer?.type === "ENTREGA" && (
+                            <div className="flex justify-between">
+                              <span>Taxa de entrega</span>
+                              <span>R$ {DELIVERY_FEE.toFixed(2)}</span>
+                            </div>
+                          )}
+
+                          <div className="flex justify-between font-bold text-base border-t pt-2">
+                            <span>Total</span>
+                            <span>R$ {totalFinal.toFixed(2)}</span>
+                          </div>
+                        </div>
+
 
                       {/* AÇÕES */}
                       <div className="flex gap-2 mt-2">
