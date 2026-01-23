@@ -46,125 +46,159 @@ async function markOrderAsPrintedSafe(orderId: number) {
 
 
 
-   async function imprimirPedido(order: any) {
-    let conteudo = "";
+ async function imprimirPedido(order: any) {
+  let conteudo = "";
 
-    const type = order?.customer?.type;
-    const origin = order?.origin;
+  const type = order?.customer?.type;
+  const origin = order?.origin;
 
-    const isBalcao = type === "BALCAO";
-    const isEntrega = type === "ENTREGA";
-    const isRetirada = type === "RETIRADA";
+  const isBalcao = type === "BALCAO";
+  const isEntrega = type === "ENTREGA";
+  const isRetirada = type === "RETIRADA";
 
-    const nome = (order?.customer?.name ?? "").toString().trim();
+  const nome = (order?.customer?.name ?? "").toString().trim();
 
-    conteudo += `PEDIDO #${order.id}\n`;
-    conteudo += `-----------------------------\n`;
+  const DELIVERY_FEE = 7;
 
-    // 🧾 ORIGEM (opcional mas útil)
-    if (origin === "CLIENT_WHATSAPP") conteudo += `Origem: WHATSAPP\n`;
-    if (origin === "PDV_ADMIN") conteudo += `Origem: PDV / ADMIN\n`;
+  // ✅ calcula subtotal (itens + adicionais com preço)
+  const items = Array.isArray(order?.items) ? order.items : [];
+  const itemsTotal = items.reduce((sum: number, item: any) => {
+    const base = Number(item.price || 0) * Number(item.quantity || 0);
 
-    // 🧾 TIPO DO PEDIDO
-    conteudo += `Tipo: ${tipoLabel[type] ?? "-"}\n\n`;
+    const adds = (Array.isArray(item.additionals) ? item.additionals : []).reduce(
+      (s: number, ad: any) => s + Number(ad.price || 0) * Number(ad.quantity || 0),
+      0
+    );
 
-    // 👤 IDENTIFICAÇÃO (CORRIGIDO)
-    // - BALCÃO: se não tiver nome, imprime BALCÃO
-    // - ENTREGA/RETIRADA: NUNCA imprime "BALCÃO" como nome
-    if (isBalcao) {
-      conteudo += `Cliente: ${nome || "BALCÃO"}\n`;
-    } else {
-      conteudo += `Cliente: ${nome || "Não informado"}\n`;
-    }
+    return sum + base + adds;
+  }, 0);
 
-    // 🪑 BALCÃO
-    if (isBalcao) {
-      conteudo += `Mesa: ${order.customer?.table || "-"}\n`;
-    }
+  const fee = isEntrega ? DELIVERY_FEE : 0;
+  const totalFinal = itemsTotal + fee;
 
-    // 📱 RETIRADA / ENTREGA
-    if (isRetirada || isEntrega) {
-      conteudo += `WhatsApp: ${order.customer?.phone || "-"}\n`;
-    }
+  conteudo += `PEDIDO #${order.id}\n`;
+  conteudo += `-----------------------------\n`;
 
-    // 🚚 ENTREGA
-    if (isEntrega) {
-      conteudo += `Endereço: ${order.customer?.address?.street ?? "-"}\n`;
-      conteudo += `Bairro: ${order.customer?.address?.bairro ?? "-"}\n`;
+  if (origin === "CLIENT_WHATSAPP") conteudo += `Origem: WHATSAPP\n`;
+  if (origin === "PDV_ADMIN") conteudo += `Origem: PDV / ADMIN\n`;
 
-      if (order.customer?.address?.reference) {
-        conteudo += `Ref.: ${order.customer.address.reference}\n`;
-      }
-    }
+  conteudo += `Tipo: ${tipoLabel[type] ?? "-"}\n\n`;
 
-    // 📝 OBSERVAÇÃO
-    if (order.customer?.note) {
-      conteudo += `\nOBS: ${order.customer.note}\n`;
-    }
-
-    // 🍔 ITENS
-    conteudo += `\nItens:\n`;
-
-    const items = Array.isArray(order?.items) ? order.items : [];
-    items.forEach((item: any) => {
-      conteudo += `- ${item.name} x${item.quantity}  R$ ${(
-        item.price * item.quantity
-      ).toFixed(2)}\n`;
-
-      item.additionals?.forEach((ad: any) => {
-        conteudo += `   + ${ad.name} (${ad.quantity}x)\n`;
-      });
-    });
-
-    // 💰 PAGAMENTO
-    conteudo += `\nPagamento:\n`;
-
-    if (order.payment?.forma === "dinheiro") {
-      conteudo += `- Dinheiro\n`;
-      if (order.payment?.trocoPara) {
-        conteudo += `  Troco para: R$ ${order.payment.trocoPara}\n`;
-      }
-    }
-
-    if (order.payment?.forma === "cartao") {
-      conteudo += `- Cartão (${order.payment.tipoCartao})\n`;
-      if (order.payment?.maquininha) {
-        conteudo += `  Máquina: ${order.payment.maquininha}\n`;
-      }
-    }
-
-    if (order.payment?.forma === "pix") {
-      conteudo += `- PIX\n`;
-      if (order.payment?.maquininha) {
-        conteudo += `  Máquina: ${order.payment.maquininha}\n`;
-      }
-    }
-
-    // 💵 TOTAL
-    conteudo += `\nTOTAL: R$ ${Number(order.total).toFixed(2)}\n`;
-    conteudo += `-----------------------------\n`;
-    conteudo += `Obrigado!\n`;
-
-    // 🖨️ PRINT
-    const win = window.open("", "", "width=300,height=600");
-    if (!win) return;
-
-    win.document.write(`
-  <pre style="
-    font-family: monospace;
-    font-size: 12px;
-    line-height: 1.2;
-    white-space: pre-wrap;
-    margin: 0;
-  ">${conteudo}</pre>
-`);
-
-
-    win.print();
-     await markOrderAsPrintedSafe(order.id);
-    win.document.close();
-   
+  if (isBalcao) {
+    conteudo += `Cliente: ${nome || "BALCÃO"}\n`;
+  } else {
+    conteudo += `Cliente: ${nome || "Não informado"}\n`;
   }
+
+  if (isBalcao) {
+    conteudo += `Mesa: ${order.customer?.table || "-"}\n`;
+  }
+
+  if (isRetirada || isEntrega) {
+    conteudo += `WhatsApp: ${order.customer?.phone || "-"}\n`;
+  }
+
+  // 🚚 ENTREGA (✅ agora com Complemento e taxa depois)
+  if (isEntrega) {
+    const street = order.customer?.address?.street ?? "-";
+    const bairro = order.customer?.address?.bairro ?? "-";
+
+    // ✅ tenta pegar “complemento” por variações comuns
+    const complemento =
+      order.customer?.address?.complement ??
+      order.customer?.address?.complemento ??
+      "";
+
+    conteudo += `Endereço: ${street}\n`;
+
+    if (complemento) {
+      conteudo += `Compl.: ${complemento}\n`;
+    }
+
+    conteudo += `Bairro: ${bairro}\n`;
+
+    if (order.customer?.address?.reference) {
+      conteudo += `Ref.: ${order.customer.address.reference}\n`;
+    }
+  }
+
+  if (order.customer?.note) {
+    conteudo += `\nOBS: ${order.customer.note}\n`;
+  }
+
+  // 🍔 ITENS
+  conteudo += `\nItens:\n`;
+  items.forEach((item: any) => {
+    conteudo += `- ${item.name} x${item.quantity}  R$ ${(
+      Number(item.price || 0) * Number(item.quantity || 0)
+    ).toFixed(2)}\n`;
+
+    (Array.isArray(item.additionals) ? item.additionals : []).forEach((ad: any) => {
+      const adTotal = Number(ad.price || 0) * Number(ad.quantity || 0);
+      // ✅ se quiser mostrar preço do adicional:
+      conteudo += `   + ${ad.name} (${ad.quantity}x)  R$ ${adTotal.toFixed(2)}\n`;
+    });
+  });
+
+  // 💰 PAGAMENTO
+  conteudo += `\nPagamento:\n`;
+
+  if (order.payment?.forma === "dinheiro") {
+    conteudo += `- Dinheiro\n`;
+    if (order.payment?.trocoPara) {
+      conteudo += `  Troco para: R$ ${Number(order.payment.trocoPara).toFixed(2)}\n`;
+    }
+  }
+
+  if (order.payment?.forma === "cartao") {
+    conteudo += `- Cartão (${order.payment.tipoCartao})\n`;
+    if (order.payment?.maquininha) {
+      conteudo += `  Máquina: ${order.payment.maquininha}\n`;
+    }
+  }
+
+  if (order.payment?.forma === "pix") {
+    conteudo += `- PIX\n`;
+    if (order.payment?.maquininha) {
+      conteudo += `  Máquina: ${order.payment.maquininha}\n`;
+    }
+  }
+
+  // ✅ TOTAIS (agora imprime taxa + subtotal + total final)
+  conteudo += `\n-----------------------------\n`;
+  conteudo += `Subtotal: R$ ${itemsTotal.toFixed(2)}\n`;
+  if (isEntrega) {
+    conteudo += `Taxa entrega: R$ ${fee.toFixed(2)}\n`;
+  }
+  conteudo += `TOTAL: R$ ${totalFinal.toFixed(2)}\n`;
+  conteudo += `-----------------------------\n`;
+  conteudo += `Obrigado!\n`;
+
+  // 🖨️ PRINT
+  const win = window.open("", "", "width=300,height=600");
+  if (!win) return;
+
+  // (opcional) escapar HTML pra não dar zebra se tiver < ou &
+  const escapeHtml = (s: string) =>
+    s.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
+
+  win.document.write(`
+    <pre style="
+      font-family: monospace;
+      font-size: 12px;
+      line-height: 1.2;
+      white-space: pre-wrap;
+      margin: 0;
+    ">${escapeHtml(conteudo)}</pre>
+  `);
+
+  win.document.close();
+  win.focus();
+  win.print();
+
+  await markOrderAsPrintedSafe(order.id);
+}
+
 
   // 🗑️ EXCLUIR PEDIDO (VERSÃO SEGURA)
   async function excluirPedido(id: number) {
@@ -300,16 +334,22 @@ async function markOrderAsPrintedSafe(orderId: number) {
                       {/* ENTREGA */}
                       {order.customer?.type === "ENTREGA" && (
                         <>
-                        
+     
                           <p>
                             <strong>Endereço:</strong>{" "}
                             {order.customer?.address?.street ?? "—"}
                           </p>
+
+                          {!!order.customer?.address?.complement && (
+                            <p>
+                              <strong>Complemento:</strong> {order.customer.address.complement}
+                            </p>
+                          )}
+
                           <p>
                             <strong>Bairro:</strong>{" "}
                             {order.customer?.address?.bairro ?? "—"}
                           </p>
-                      
 
                           {order.customer?.address?.reference && (
                             <p>
