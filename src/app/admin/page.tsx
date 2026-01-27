@@ -42,12 +42,21 @@ export default function AdminPage() {
           🏷️ Pedidos
         </a>
 
-                <a
+        <a
+          href="/admin/reports"
+          className="bg-white text-red-600  font-bold py-4 rounded-lg shadow-md hover:scale-[1.02] transition-transform"
+        >
+          🏷️ Relatorio diário
+        </a>
+        
+
+        <a
           href="/admin/store-status"
           className="bg-white text-red-600  font-bold py-4 rounded-lg shadow-md hover:scale-[1.02] transition-transform"
         >
           🏷️ Abrir Lanchonete Manualmente
         </a>
+
         
 
       </div>

@@ -86,7 +86,7 @@ export async function POST(req: Request) {
               street: String(rawCustomer?.address?.street ?? "").trim(),
               number: String(rawCustomer?.address?.number ?? "").trim() || undefined,
               complement:
-                String(rawCustomer?.address?.complement ?? "").trim() || undefined,
+              String(rawCustomer?.address?.complement ?? "").trim() || undefined,
               bairro: String(rawCustomer?.address?.bairro ?? "").trim(),
               reference:
                 String(rawCustomer?.address?.reference ?? "").trim() || undefined,
@@ -123,8 +123,8 @@ export async function POST(req: Request) {
         customer,
       },
     });
-      console.log("CUSTOMER NORMALIZADO:", customer);
-console.log("ORIGIN:", origin, "TYPE:", type);
+    
+
     return NextResponse.json({ success: true, orderId: order.id });
 
   } catch (error) {
