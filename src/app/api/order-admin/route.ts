@@ -150,3 +150,28 @@ export async function GET() {
     return NextResponse.json({ error: "Erro ao buscar pedidos" }, { status: 500 });
   }
 }
+
+export async function DELETE() {
+  try {
+    console.log("🧹 Excluindo apenas pedidos impressos");
+
+    const result = await prisma.orderAdmin.deleteMany({
+      where: {
+        printedAt: {
+          not: null, // ✅ somente os que já foram impressos
+        },
+      },
+    });
+
+    return NextResponse.json({
+      ok: true,
+      deletedCount: result.count,
+    });
+  } catch (error) {
+    console.error(error);
+    return NextResponse.json(
+      { error: "Erro ao excluir pedidos impressos" },
+      { status: 500 }
+    );
+  }
+}

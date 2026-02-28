@@ -199,8 +199,32 @@ async function markOrderAsPrintedSafe(orderId: number) {
   await markOrderAsPrintedSafe(order.id);
 }
 
+  // 🧹 EXCLUIR TODOS OS PEDIDOS
+async function excluirTudo() {
+  if (!orders?.length) return;
 
-  // 🗑️ EXCLUIR PEDIDO (VERSÃO SEGURA)
+  const ok = confirm(
+    `Deseja excluir TODOS os pedidos? (${orders.length})\nEssa ação não pode ser desfeita.`
+  );
+  if (!ok) return;
+
+  const res = await fetch("/api/order-admin", {
+    method: "DELETE",
+  });
+
+  if (!res.ok) {
+    const txt = await res.text().catch(() => "");
+    console.error("Erro ao excluir tudo:", res.status, txt);
+    alert("Erro ao excluir tudo. Tente novamente.");
+    return;
+  }
+
+  // limpa a tela
+  setOrders([]);
+}
+
+
+  // 🗑️ EXCLUIR PEDIDO
   async function excluirPedido(id: number) {
     if (!confirm("Deseja excluir este pedido?")) return;
 
@@ -451,6 +475,19 @@ async function markOrderAsPrintedSafe(orderId: number) {
                           className="flex-1 bg-red-600 text-white py-2 rounded font-bold"
                         >
                           🗑️ Excluir
+                        </button>
+                          <button
+                          onClick={excluirTudo}
+                          disabled={!orders?.length}
+                          className={[
+                            "flex-1 py-2 rounded font-bold transition",
+                            !orders?.length
+                              ? "bg-red-300 text-white cursor-not-allowed"
+                              : "bg-red-900 text-white hover:bg-red-950",
+                          ].join(" ")}
+                          title="Excluir todos os pedidos"
+                        >
+                          🧹 Excluir tudo
                         </button>
                       </div>
                     </div>
