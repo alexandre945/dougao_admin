@@ -94,7 +94,7 @@ export default function VendaPage() {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const itemsCount = cart.reduce((acc, item) => acc + item.quantity, 0);
 
-  const DELIVERY_FEE = 7;
+  const DELIVERY_FEE = 8;
 
   function setTipoPedido(tipo: "balcao" | "retirada" | "entrega") {
     setCustomer((prev) => ({

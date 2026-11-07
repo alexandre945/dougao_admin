@@ -58,7 +58,7 @@ async function markOrderAsPrintedSafe(orderId: number) {
 
   const nome = (order?.customer?.name ?? "").toString().trim();
 
-  const DELIVERY_FEE = 7;
+  const DELIVERY_FEE = 8;
 
   // ✅ calcula subtotal (itens + adicionais com preço)
   const items = Array.isArray(order?.items) ? order.items : [];
@@ -278,7 +278,7 @@ async function excluirTudo() {
 
           const isPrinted = !!order.printedAt;
 
-           const DELIVERY_FEE = 7;
+           const DELIVERY_FEE = 8;
 
             const itemsTotal = (Array.isArray(order.items) ? order.items : []).reduce(
               (sum: number, item: any) => {
